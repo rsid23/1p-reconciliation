@@ -11,6 +11,7 @@ from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.edge.options import Options
 import shutil
 import time
+import datetime
 import os
 import json
 import lxml
@@ -61,6 +62,7 @@ def get_driver(folder):
 
     #This one is to pass bot detection at: 'https://bot.sannysoft.com/'
     options.add_argument("--disable-blink-features=AutomationControlled")
+    options.add_argument("--disable-features=msEdgeJSONViewer") #this one is to force Edge to not use formatting for json objects
 
     #driver = webdriver.Edge(executable_path=r'"C:\Users\catalin\Documents\work\selenium\edgedriver_win64\msedgedriver.exe"', 
     #                        options = options)
@@ -86,19 +88,29 @@ def download_invoice (driver, invoice, payee):
     driver.implicitly_wait(50)
     time.sleep(5)
 
-def download_backupreport_info(driver, folder, fileName, agreementNumber, invoiceNumber, invoiceLineType):
+def download_backupreport_info(driver, folder, fileName, agreementNumber, invoiceNumber, invoiceLineType, invoiceDate):
     url=f"https://vendorcentral.amazon.com/hz/vendor/members/coop/resource/backupreport/download?fileName={fileName}&agreementNumber={agreementNumber}&invoiceNumber={invoiceNumber}&invoiceLineType={invoiceLineType}"
     driver.get(url)
-    time.sleep(3)
-    source_file = folder+r'\BackupReport.xls' 
-    destination_file = folder +  '/' +  str(agreementNumber) + '_' + invoiceNumber + '_' + invoiceLineType + '_' + fileName + '.xls'
+    time.sleep(10) #Sometimes files take longer to download so this might need to be increased so that the file to be completely donwloaded before gettig to rename it.
+    source_file = os.path.join(folder, 'BackupReport.xls') 
+    destination_file = os.path.join(folder, str(agreementNumber) + '_' + invoiceNumber + '_' + invoiceLineType + '_' + invoiceDate + '_' + fileName + '.xls')
     shutil.move(source_file,  destination_file)
     
 def get_backupreport_info(driver, folder, agreement):
-    agreementNumber = agreement['cells']['AGREEMENT_DETAILS']['value']['data']['agreementNumber']
-    invoiceNumber = agreement['cells']['AGREEMENT_DETAILS']['value']['data']['invoiceNumber']
-    invoiceLineType = agreement['cells']['AGREEMENT_DETAILS']['value']['data']['invoiceLineType']
-    ccogsInvoiceId = agreement['cells']['AGREEMENT_DETAILS']['value']['data']['ccogsInvoiceId']
+    #greementNumber = agreement['cells']['AGREEMENT_DETAILS']['value']['data']['agreementNumber']
+    #invoiceNumber = agreement['cells']['AGREEMENT_DETAILS']['value']['data']['invoiceNumber']
+    #invoiceLineType = agreement['cells']['AGREEMENT_DETAILS']['value']['data']['invoiceLineType']
+    #ccogsInvoiceId = agreement['cells']['AGREEMENT_DETAILS']['value']['data']['ccogsInvoiceId']
+    #invoiceDate = datetime.date(agreement['cells']['INVOICE_DATE']['value'][0], agreement['cells']['INVOICE_DATE']['value'][1], agreement['cells']['INVOICE_DATE']['value'][2]).isoformat()
+    agreementNumber = agreement['AGREEMENT_NUMBER']
+    invoiceNumber = agreement['INVOICE_NUMBER']
+    invoiceLineType = agreement['INVOICE_LINE_TYPE']
+    ccogsInvoiceId = agreement['CCOGSINVOICEID']
+    invoiceDate = agreement['INVOICE_DATE']
+    
+    #inv_mth, inv_day, inv_year = agreement['INVOICE_DATE'].split('/')
+    #invoiceDate = datetime.date(inv_year, inv_mth, inv_day).isoformat()
+    
     url = f"https://vendorcentral.amazon.com/hz/vendor/members/coop/resource/backupreports/get?invoiceNumber={invoiceNumber}&agreementNumber={agreementNumber}&invoiceLineType={invoiceLineType}&ccogsInvoiceId={ccogsInvoiceId}"
     driver.get(url)
     e=driver.find_element(By.XPATH, "/html/body/pre")
@@ -106,12 +118,21 @@ def get_backupreport_info(driver, folder, agreement):
     #/html/body/pre/text
     fileName=a['backUpReportInfos'][0]['fileName']
     #print(len(a['backUpReportInfos']))
-    download_backupreport_info(driver, folder, fileName, agreementNumber, invoiceNumber, invoiceLineType)
+    download_backupreport_info(driver, folder, fileName, agreementNumber, invoiceNumber, invoiceLineType, invoiceDate)
     return a
     
-def get_agreement_info(agreement):    
-    return {'agreementNumber': agreement['cells']['AGREEMENT_DETAILS']['value']['data']['agreementNumber'],
-            'agreementType': agreement['cells']['AGREEMENT_DETAILS']['value']['data']['fundingType'],
+def get_agreement_info(agreement, extra):    
+    mth, day, year = agreement['INVOICE_DATE'].split('/')
+    invoiceDate = datetime.date(int(year), int(mth), int(day)).isoformat()
+    
+    
+    return {'AGREEMENT_NUMBER': agreement['AGREEMENT_NUMBER'],
+            'AGREEMENT_TITLE': agreement['AGREEMENT_TITLE'],
+            'INVOICE_NUMBER': agreement['INVOICE_NUMBER'],
+            'INVOICE_DATE': invoiceDate,
+            'FUNDING_TYPE': agreement['FUNDING_TYPE'],
+            'INVOICE_LINE_TYPE': extra['invoiceLineType'],
+            'CCOGSINVOICEID': extra['ccogsInvoiceId'],
             'cnt': 1}
 
 #from lxml import html
@@ -119,45 +140,57 @@ def get_agreement_info(agreement):
 #[td.text for td in tree.xpath("//td")]
 
 def get_agreement_details(driver, folder,  agreement):
-    agreementNumber = agreement['cells']['AGREEMENT_DETAILS']['value']['data']['agreementNumber']
-    invoiceNumber = agreement['cells']['AGREEMENT_DETAILS']['value']['data']['invoiceNumber']
-    invoiceLineType = agreement['cells']['AGREEMENT_DETAILS']['value']['data']['invoiceLineType']
-    ccogsInvoiceId = agreement['cells']['AGREEMENT_DETAILS']['value']['data']['ccogsInvoiceId']
-    fundingType = agreement['cells']['AGREEMENT_DETAILS']['value']['data']['fundingType']
-    agreementTitle = agreement['cells']['AGREEMENT_DETAILS']['value']['data']['agreementTitle']
+    agreementNumber = agreement['AGREEMENT_NUMBER']
+    agreementTitle = agreement['AGREEMENT_TITLE']
+    invoiceNumber = agreement['INVOICE_NUMBER']
+    fundingType = agreement['FUNDING_TYPE']
+    invoiceLineType = agreement['INVOICE_LINE_TYPE']
+    ccogsInvoiceId = agreement['CCOGSINVOICEID']
+    invoiceDate = agreement['INVOICE_DATE']
+    #invoiceDate = datetime.date(agreement['cells']['INVOICE_DATE']['value'][0], agreement['cells']['INVOICE_DATE']['value'][1], agreement['cells']['INVOICE_DATE']['value'][2]).isoformat()
     url = f"https://vendorcentral.amazon.com/hz/vendor/members/coop/resource/invoice/agreement-text?agreementNumber={agreementNumber}&invoiceNumber={invoiceNumber}&invoiceLineType={invoiceLineType}&ccogsInvoiceId={ccogsInvoiceId}"
     driver.get(url)
     e=driver.find_element(By.XPATH, "/html/body/pre")
     a=json.loads(e.text)
     #print(a['agreementText'])
-    tree = html.fromstring(a['agreementText'])
-    try:
-        
-        for ul in tree.find("./body/table/tr/td/ul"):
-            #Looks like the Agreement Term LI element can be anywhere in the list
-            if 'Agreement Term:' in ul.text or 'Agreement term:' in ul.text:            
-                agreement_dates=ul.text.strip().split(':')[1][:-1].strip().split(' to ')
-                agreement_start_date=agreement_dates[0]
-                agreement_end_date=agreement_dates[1]
-            if 'MDF/COOP Terms:' in ul.text:            
-                match = re.search(r'(\d+.\d+%+)|(\d+%+)', ul.text)  #sometimes it is 1.0% and sometimes it is 1%        
+    tree = html.fromstring(a['agreementText'].replace('\n',''))
+    if 'Provisional CoOp' not in agreementTitle:
+        try:
+            
+            for ul in tree.find("./body/table/tr/td/ul"):
+                #Looks like the Agreement Term LI element can be anywhere in the list
+                if ul.text:  #Sometimes ul.text is empty / None 
+                    if 'Agreement Term:' in ul.text or 'Agreement term:' in ul.text:            
+                        agreement_dates=ul.text.strip().split(':')[1][:-1].strip().split(' to ')
+                        agreement_start_date=agreement_dates[0]
+                        agreement_end_date=agreement_dates[1]
+                    if 'MDF/COOP Terms:' in ul.text:            
+                        match = re.search(r'(\d+.\d+%+)|(\d+%+)', ul.text)  #sometimes it is 1.0% and sometimes it is 1%        
+                        if match:
+                            agreement_pct = float(match.group()[:-1])  #get rid of % sign
+                    if 'Freight Allowance Terms:' in ul.text:            
+                        match = re.search(r'(\d+.\d+%+)|(\d+%+)', ul.text)  #sometimes it is 1.0% and sometimes it is 1%        
+                        if match:
+                            agreement_pct = float(match.group()[:-1])  #get rid of % sign
+            #match = re.search(r'\d+.\d+%+', agreementTitle)
+            if 'agreement_pct' not in locals():
+                match = re.search(r'(\d+.\d+%+)|(\d+%+)', agreementTitle)  #sometimes it is 1.0% and sometimes it is 1%        
                 if match:
                     agreement_pct = float(match.group()[:-1])  #get rid of % sign
-        #match = re.search(r'\d+.\d+%+', agreementTitle)
-        if 'agreement_pct' not in locals():
-            match = re.search(r'(\d+.\d+%+)|(\d+%+)', agreementTitle)  #sometimes it is 1.0% and sometimes it is 1%        
-            if match:
-                agreement_pct = float(match.group()[:-1])  #get rid of % sign
-                
-    except AttributeError as e:
-        agreement_pct = None
+                    
+        except AttributeError as e:
+            agreement_pct = None
+            agreement_start_date = None
+            agreement_end_date = None
+    else:
         agreement_start_date = None
         agreement_end_date = None
-        
-    backupReport = get_backupreport_info(driver, folder, agreement)
+        agreement_pct = None
+    #backupReport = get_backupreport_info(driver, folder, agreement)
     
     return {'agreementNumber': agreementNumber,
             'invoiceNumber': invoiceNumber,
+            'invoiceDate': invoiceDate,
             'invoiceLineType': invoiceLineType,
             'ccogsInvoiceId': ccogsInvoiceId,
             'agreementTitle': agreementTitle,
@@ -166,11 +199,13 @@ def get_agreement_details(driver, folder,  agreement):
             'agreementStartDate': agreement_start_date,
             'agreementEndDate': agreement_end_date,
             'agreementRawText': a['agreementText'],
-            'backupReportFile': backupReport['backUpReportInfos'][0]['fileName'],
-            'backupReportStart': backupReport['backUpReportInfos'][0]['startDate'],
-            'backupReportEnd': backupReport['backUpReportInfos'][0]['endDate'],
-            'cntBackupReportFiles': len(backupReport['backUpReportInfos'])
+#            'backupReportFile': backupReport['backUpReportInfos'][0]['fileName'],
+#            'backupReportStart': backupReport['backUpReportInfos'][0]['startDate'],
+#            'backupReportEnd': backupReport['backUpReportInfos'][0]['endDate'],
+#            'cntBackupReportFiles': len(backupReport['backUpReportInfos'])
             }          
+    
+   
 
 
 def preprocess_invoice_csv(input_file, output_file):

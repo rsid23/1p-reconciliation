@@ -17,7 +17,7 @@ import lib1p.config
 
 
 
-argv = ['1', '2022']
+argv = ['1', '2023']
 
 
 
@@ -46,26 +46,33 @@ def main(argv):
         
         url = f'https://vendorcentral.amazon.com/hz/vendor/members/coop?searchText=&from_date_m=1&from_date_d=1&from_date_y={year}&to_date_m=12&to_date_d=31&to_date_y={year}'        
         my_driver.get(url)
-        r1=my_driver.find_element(By.ID, "cc-invoice-table-melodic-data")
-        m=json.loads(r1.get_attribute('innerHTML'))
+        r1=my_driver.find_element(By.ID, "kat-invoice-table")
+        m=json.loads(r1.get_attribute('rowdata'))
         total_cnt_acc_agreements = 0
+        agreements_info = []
         
-        for record in m['records']:
-            info = f1p.get_agreement_info(record)
-            if info['agreementType']=='Accrual':
+        for record in m:
+            adt=my_driver.find_element(By.ID, "invoiceData-"+record['INVOICE_NUMBER'])
+            extra=json.loads(adt.get_attribute('data-invoice-data'))
+            info = f1p.get_agreement_info(record, extra)
+            if info['FUNDING_TYPE']=='Accrual':
                 total_cnt_acc_agreements += 1
+                agreements_info.append(info)
 
 
         agreements = []
         acc_agreement = 0
-        for record in m['records']:
-            info = f1p.get_agreement_info(record)
-            if info['agreementType']=='Accrual':
-                acc_agreement +=1
-                a = f1p.get_agreement_details(my_driver, DOWNLOAD_FOLDER, record)
-                time.sleep(3)
-                agreements.append(a)
-                print(f'Got agreement {acc_agreement}/{total_cnt_acc_agreements}')
+        for record in agreements_info:            
+           acc_agreement +=1
+           a = f1p.get_agreement_details(my_driver, None, record)
+           time.sleep(3)
+           backupReport = f1p.get_backupreport_info(my_driver, DOWNLOAD_FOLDER, record)
+           a['backupReportFile'] = backupReport['backUpReportInfos'][0]['fileName'],
+           a['backupReportStart'] = backupReport['backUpReportInfos'][0]['startDate'],
+           a['backupReportEnd'] = backupReport['backUpReportInfos'][0]['endDate'],
+           a['cntBackupReportFiles'] = len(backupReport['backUpReportInfos'])
+           agreements.append(a)
+           print(f'Got agreement {acc_agreement}/{total_cnt_acc_agreements}')
         agreementsDF = pd.DataFrame(agreements)
         os.makedirs(f'{DOWNLOAD_PATH_AGREEMENTS}/{year}', exist_ok=True) 
         agreementsDF.to_csv(f'{DOWNLOAD_PATH_AGREEMENTS}/{year}/{year}.csv', index=False)
