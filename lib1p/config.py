@@ -6,6 +6,6 @@ Created on Fri Aug 11 13:32:07 2023
 """
 import pyotp
 
-USER='please fill in '
-PASS='please fill in '
-MFA = pyotp.TOTP('please fill in')
+USER='reporting@iderive.com'
+PASS='Romeo!xx'
+MFA = pyotp.TOTP('TZ3COKIVQWHTEPDLQRQ6KX45RUGKB3V3GEVO2ATP77I7XXSRBPXA')

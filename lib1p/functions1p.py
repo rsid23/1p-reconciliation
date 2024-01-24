@@ -30,23 +30,31 @@ def login_amazon(driver, user, password, mfa):
             elmt_pass.send_keys(password)
             elmt_signin = driver.find_element(By.ID, "signInSubmit")
             elmt_signin.click()
+            login=False
         if driver.title == 'Two-Step Verification':
             driver.implicitly_wait(5)
-            mfa_chose = driver.find_elements(By.ID, 'auth-select-device-form')
+            elmt_otp = driver.find_element(By.ID, "auth-mfa-otpcode")
+            elmt_otp.clear()
+            time.sleep(5)
+            elmt_otp.send_keys(mfa.now())
+            elmt_signin = driver.find_element(By.ID, "auth-signin-button")
+            elmt_signin.click()
+        #if driver.title not in ('Amazon Sign-In', 'Two-Step Verification'):
+        #    login = False
+
+'''
+        if driver.title == 'Two-Step Verification':
+            driver.implicitly_wait(5)
+            mfa_chose = driver.find_elements(By.ID, 'auth-mfa-otpcode')
             if mfa_chose:
-                elmt_choseotp = driver.find_element(By.XPATH, '//*[@id="auth-select-device-form"]/div[1]/fieldset/div[1]/label/input')
-                elmt_choseotp.click()
+                #elmt_choseotp = driver.find_element(By.XPATH, '//*[@id="auth-select-device-form"]/div[1]/fieldset/div[1]/label/input')
+                elmt_choseotp = driver.find_element(By.ID, "auth-mfa-otpcode")
+                #elmt_choseotp.click()
+                elmt_choseotp
                 elmt_sendotp = driver.find_element(By.ID, 'auth-send-code')
                 elmt_sendotp.click()
-            else:    
-                elmt_otp = driver.find_element(By.ID, "auth-mfa-otpcode")
-                elmt_otp.clear()
-                time.sleep(5)
-                elmt_otp.send_keys(mfa.now())
-                elmt_signin = driver.find_element(By.ID, "auth-signin-button")
-                elmt_signin.click()
-        if driver.title not in ('Amazon Sign-In', 'Two-Step Verification'):
-            login = False
+        
+'''          
             
             
             
@@ -147,24 +155,46 @@ def get_agreement_details(driver, folder,  agreement):
     invoiceLineType = agreement['INVOICE_LINE_TYPE']
     ccogsInvoiceId = agreement['CCOGSINVOICEID']
     invoiceDate = agreement['INVOICE_DATE']
+    #agreementText = agreement['agreementText']
     #invoiceDate = datetime.date(agreement['cells']['INVOICE_DATE']['value'][0], agreement['cells']['INVOICE_DATE']['value'][1], agreement['cells']['INVOICE_DATE']['value'][2]).isoformat()
     url = f"https://vendorcentral.amazon.com/hz/vendor/members/coop/resource/invoice/agreement-text?agreementNumber={agreementNumber}&invoiceNumber={invoiceNumber}&invoiceLineType={invoiceLineType}&ccogsInvoiceId={ccogsInvoiceId}"
+    print(f"getting agreement details: {url}")
+    print(f'agreement number: {agreementNumber}')
+    print(f'agreement title: {agreementTitle}')
+    print(f'invoice number: {invoiceNumber}')
+    print(f'funding type: {fundingType}')
+
+
     driver.get(url)
+    time.sleep(5)
     e=driver.find_element(By.XPATH, "/html/body/pre")
+    rawText = driver.find_element(By.TAG_NAME,"body").text
     a=json.loads(e.text)
-    #print(a['agreementText'])
-    tree = html.fromstring(a['agreementText'].replace('\n',''))
+    a = a['agreementText'].replace('\n','')
+    a = a.replace('<br>','')
+    #tree = html.fromstring(a['agreementText'].replace('\n',''))
+    tree = html.fromstring(a) 
+    #print('HTML AS STRING')
+    #print(html.tostring(tree, pretty_print=True))
+    date_pattern = re.compile(r'from (\w+ \d{2}, \d{4}) to (\w+ \d{2}, \d{4})')
     if 'Provisional CoOp' not in agreementTitle:
         try:
-            
             for ul in tree.find("./body/table/tr/td/ul"):
                 #Looks like the Agreement Term LI element can be anywhere in the list
+                #print(ul.text)
                 if ul.text:  #Sometimes ul.text is empty / None 
-                    if 'Agreement Term:' in ul.text or 'Agreement term:' in ul.text:            
-                        agreement_dates=ul.text.strip().split(':')[1][:-1].strip().split(' to ')
-                        agreement_start_date=agreement_dates[0]
-                        agreement_end_date=agreement_dates[1]
-                    if 'MDF/COOP Terms:' in ul.text:            
+                    if 'agreement is valid' in ul.text or 'agreement:' in ul.text: 
+                        match = date_pattern.search(ul.text)
+                        agreement_start_date=match.group(1)
+                        agreement_end_date=match.group(2)                        
+                        #agreement_dates=ul.text.strip().split(':')[1][:-1].strip().split(' to ')
+                        #agreement_start_date=agreement_dates[0]
+                        #agreement_end_date=agreement_dates[1]
+                    if 'MDF or COOP' in ul.text: 
+                        date_pattern = re.compile(r'(\w+ \d{2}, \d{4}) - (\w+ \d{2}, \d{4})')
+                        match = date_pattern.search(ul.text)
+                        agreement_start_date=match.group(1)
+                        agreement_end_date=match.group(2)
                         match = re.search(r'(\d+.\d+%+)|(\d+%+)', ul.text)  #sometimes it is 1.0% and sometimes it is 1%        
                         if match:
                             agreement_pct = float(match.group()[:-1])  #get rid of % sign
@@ -187,7 +217,6 @@ def get_agreement_details(driver, folder,  agreement):
         agreement_end_date = None
         agreement_pct = None
     #backupReport = get_backupreport_info(driver, folder, agreement)
-    
     return {'agreementNumber': agreementNumber,
             'invoiceNumber': invoiceNumber,
             'invoiceDate': invoiceDate,
@@ -198,13 +227,13 @@ def get_agreement_details(driver, folder,  agreement):
             'agreementPct': agreement_pct,
             'agreementStartDate': agreement_start_date,
             'agreementEndDate': agreement_end_date,
-            'agreementRawText': a['agreementText'],
+            'agreementRawText': rawText,
 #            'backupReportFile': backupReport['backUpReportInfos'][0]['fileName'],
 #            'backupReportStart': backupReport['backUpReportInfos'][0]['startDate'],
 #            'backupReportEnd': backupReport['backUpReportInfos'][0]['endDate'],
 #            'cntBackupReportFiles': len(backupReport['backUpReportInfos'])
             }          
-    
+
    
 
 

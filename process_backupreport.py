@@ -9,63 +9,46 @@ import pandas as pd
 import os
 import numpy as np
 
-input_folder = './2023/'
+input_folder = 'D:\\IDERIVE\\repos\\iderive-ds-1pinvoice-selenium\\Downloads\\backupreports\\2023\\'
+revised_folder = 'D:\\IDERIVE\\repos\\iderive-ds-1pinvoice-selenium\\Downloads\\backupreports\\2023\\revised\\'
+processed_folder = 'D:\\IDERIVE\\repos\\iderive-ds-1pinvoice-selenium\\Downloads\\backupreports\\2023\\processed\\'
 #output_folder = './2023_processed/'
 
-os.makedirs('processed', exist_ok=True) 
-os.makedirs('revised', exist_ok=True) 
+os.makedirs(processed_folder, exist_ok=True) 
+os.makedirs(revised_folder, exist_ok=True) 
 d = []
-def process_backup_report(path, file_name):
-    os.makedirs(os.path.join('./processed',path), exist_ok=True) 
-    os.makedirs(os.path.join('./revised',path), exist_ok=True) 
+
+for files in os.listdir(input_folder):
     mydtype = {'UPC': str, 'EAN': str, "Product Group": str, "Category": str, "Subcategory": str, 
                "Product Description": str, "Price Protection Agreement": str, "Invoice": str}
-    
-    
-    #df = pd.read_excel(input_folder + file_name, dtype=mydtype)
-    df = pd.read_excel(os.path.join(path, file_name), dtype=mydtype)
-    agreement, invoice, invoicelinetype, invoicedate, file = file_name.split('_')
-    file = file_name.split('.')[0]
+    if '.xls' in files:
+        df = pd.read_excel(input_folder+'\\'+files, dtype=mydtype)
+        agreement, invoice, invoicelinetype, invoicedate, file = files.split('_')
+        file = files.split('.')[0]
     
     if 'Marketplace' in df.columns:
         df = df.drop(columns=['Marketplace'])
         
     if 'Multi-Country Parent Agreement ID' not in df.columns:
         df['Multi-Country Parent Agreement ID']=np.nan
+    
     df['bkup_agreement'] = agreement
     df['bkup_invoice'] = invoice
     df['bkup_invoice_date'] = invoicedate
     df['bkup_invoicelinetype'] = invoicelinetype
     df['bkup_file'] = file
     df = df[:-2]
-    
-    if 'Revised Invoice Quantity' in df.columns:
-        output_folder='./revised/'
-    else:    
-        output_folder='./processed/'        
-    df.to_csv(os.path.join(output_folder+path, file_name.split('.')[0]+'.csv'), index=False)
-    print(file)    
-    d.append({'invoice': invoice,
-              'invoice_date': invoicedate})
 
+    if  'Revised Invoice Quantity' in df.columns:
+        output_folder=revised_folder
+    else:
+        output_folder=processed_folder
+    file_check =('D:\\IDERIVE\\repos\\iderive-ds-1pinvoice-selenium\\Downloads\\backupreports\\2023\\'+files)
+    #print(os.isfile(file_check))
 
-def infile(file):
-    #df = pd.read_excel(input_folder + file_name)
-    df = pd.read_excel(file)
-    if 'Marketplace' in df.columns:
-        print(file)
-    
+    if os.path.isfile(file_check):
+        print('createing file')
+        print(output_folder+files +'.csv')
+        df.to_csv(output_folder+files +'.csv', index=False)
+        d.append({'invoice': invoice, 'invoice_date': invoicedate})
 
-for root, dirs, files in os.walk(input_folder):
-    for file in files:
-        infile(os.path.join(root, file))
-
-
-for root, _dirs, files in os.walk(input_folder):
-    for file in files:
-        #process_backup_report(file)
-        process_backup_report(root, file)
-        
-ddf = pd.DataFrame(d)     
-ddf.to_csv('invoices.csv', index=False)   
-    
