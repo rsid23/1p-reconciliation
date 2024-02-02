@@ -91,9 +91,8 @@ def download_invoice (driver, invoice, payee):
     driver.get(url)
     export_all = driver.find_element(By.ID, "line-items-export-to-spreadsheet-announce")
     #need to wait for numbers to be populated in the excel
-    time.sleep(3)
-    export_all.click()
     driver.implicitly_wait(50)
+    export_all.click()
     time.sleep(5)
 
 def download_backupreport_info(driver, folder, fileName, agreementNumber, invoiceNumber, invoiceLineType, invoiceDate):
@@ -183,7 +182,7 @@ def get_agreement_details(driver, folder,  agreement):
                 #Looks like the Agreement Term LI element can be anywhere in the list
                 #print(ul.text)
                 if ul.text:  #Sometimes ul.text is empty / None 
-                    if 'agreement is valid' in ul.text or 'agreement:' in ul.text: 
+                    if 'agreement is valid' in ul.text or 'agreement:' or 'Agreement Term:' in ul.text: 
                         match = date_pattern.search(ul.text)
                         agreement_start_date=match.group(1)
                         agreement_end_date=match.group(2)                        

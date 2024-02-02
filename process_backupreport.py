@@ -1,17 +1,12 @@
 # -*- coding: utf-8 -*-
-"""
-Created on Wed Jun  7 13:55:36 2023
-
-@author: catalin
-"""
 
 import pandas as pd
 import os
 import numpy as np
 
-input_folder = 'D:\\IDERIVE\\repos\\iderive-ds-1pinvoice-selenium\\Downloads\\backupreports\\2023\\'
-revised_folder = 'D:\\IDERIVE\\repos\\iderive-ds-1pinvoice-selenium\\Downloads\\backupreports\\2023\\revised\\'
-processed_folder = 'D:\\IDERIVE\\repos\\iderive-ds-1pinvoice-selenium\\Downloads\\backupreports\\2023\\processed\\'
+input_folder = 'D:\\IDERIVE\\repos\\iderive-ds-1pinvoice-selenium\\Downloads\\backupreports\\2021\\'
+revised_folder = 'D:\\IDERIVE\\repos\\iderive-ds-1pinvoice-selenium\\Downloads\\backupreports\\2021\\revised\\'
+processed_folder = 'D:\\IDERIVE\\repos\\iderive-ds-1pinvoice-selenium\\Downloads\\backupreports\\2021\\processed\\'
 #output_folder = './2023_processed/'
 
 os.makedirs(processed_folder, exist_ok=True) 
@@ -43,7 +38,7 @@ for files in os.listdir(input_folder):
         output_folder=revised_folder
     else:
         output_folder=processed_folder
-    file_check =('D:\\IDERIVE\\repos\\iderive-ds-1pinvoice-selenium\\Downloads\\backupreports\\2023\\'+files)
+    file_check =('D:\\IDERIVE\\repos\\iderive-ds-1pinvoice-selenium\\Downloads\\backupreports\\2021\\'+files)
     #print(os.isfile(file_check))
 
     if os.path.isfile(file_check):

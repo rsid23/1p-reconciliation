@@ -1,9 +1,4 @@
 # -*- coding: utf-8 -*-
-"""
-Spyder Editor
-
-This is a temporary script file.
-"""
 
 from selenium.webdriver.common.by import By
 import os
@@ -15,15 +10,6 @@ import lib1p.config
 from itertools import chain
 
  
-
-
-
-
-
-#argv = ['1', '2023']
-
-
-
 
 def main(argv):
     if len(argv) != 6:
